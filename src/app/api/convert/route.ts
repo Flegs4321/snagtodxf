@@ -41,10 +41,26 @@ class SimpleDxfWriter {
   addPolyline(points: number[][], options: { layer: string; closed: boolean } = { layer: '0', closed: false }) {
     if (points.length < 2) return
     
+    console.log(`Creating DXF with ${points.length} points`)
+    
+    // Clean up points to remove duplicates and very close points
+    const cleanedPoints = this.cleanPoints(points)
+    console.log(`Cleaned to ${cleanedPoints.length} points`)
+    
     // Create individual LINE entities for maximum compatibility
-    for (let i = 0; i < points.length; i++) {
-      const current = points[i]
-      const next = points[(i + 1) % points.length]
+    for (let i = 0; i < cleanedPoints.length; i++) {
+      const current = cleanedPoints[i]
+      const next = cleanedPoints[(i + 1) % cleanedPoints.length]
+      
+      // Skip if current and next points are identical
+      const dx = next[0] - current[0]
+      const dy = next[1] - current[1]
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      
+      if (distance < 0.001) {
+        console.log(`Skipping duplicate line segment at index ${i}`)
+        continue
+      }
       
       this.content.push('0')
       this.content.push('LINE')
@@ -64,6 +80,43 @@ class SimpleDxfWriter {
       this.content.push('0.0')
     }
   }
+  
+  // Clean up points to remove duplicates and very close points
+  private cleanPoints(points: number[][]): number[][] {
+    if (points.length < 2) return points
+    
+    const cleaned: number[][] = [points[0]]
+    const minDistance = 0.01 // Slightly larger minimum distance to prevent double lines
+    
+    for (let i = 1; i < points.length; i++) {
+      const current = points[i]
+      const last = cleaned[cleaned.length - 1]
+      
+      const dx = current[0] - last[0]
+      const dy = current[1] - last[1]
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      
+      if (distance >= minDistance) {
+        cleaned.push(current)
+      }
+    }
+    
+    // Ensure the path is properly closed
+    if (cleaned.length > 2) {
+      const first = cleaned[0]
+      const last = cleaned[cleaned.length - 1]
+      const dx = last[0] - first[0]
+      const dy = last[1] - first[1]
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      
+      if (distance >= minDistance) {
+        cleaned.push([first[0], first[1]])
+      }
+    }
+    
+    return cleaned
+  }
+  
   
   toString(): string {
     this.content.push('0')
@@ -87,10 +140,282 @@ function findContours(imageData: Buffer, width: number, height: number, threshol
     }
   }
   
-  // Find the perfect contour using chain code algorithm
-  const contour = findPerfectContour(pixels, width, height)
+  console.log(`Starting single-line contour detection on ${width}x${height} image`)
   
-  return contour.length > 0 ? [contour] : []
+  // Find only the outer boundary to avoid double lines
+  const outerBoundary = findSingleOuterBoundary(pixels, width, height)
+  
+  if (outerBoundary.length > 2) {
+    console.log(`Found outer boundary with ${outerBoundary.length} points`)
+    return [outerBoundary]
+  }
+  
+  console.log(`No valid boundary found`)
+  return []
+}
+
+// Find only the outermost boundary to avoid double lines
+function findOuterBoundary(pixels: number[][], width: number, height: number): number[][] {
+  // Find the bounding box of all black pixels
+  let minX = width, maxX = -1, minY = height, maxY = -1
+  let foundBlack = false
+  
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (pixels[y][x] === 1) {
+        foundBlack = true
+        minX = Math.min(minX, x)
+        maxX = Math.max(maxX, x)
+        minY = Math.min(minY, y)
+        maxY = Math.max(maxY, y)
+      }
+    }
+  }
+  
+  if (!foundBlack) return []
+  
+  console.log(`Outer boundary: minX=${minX}, maxX=${maxX}, minY=${minY}, maxY=${maxY}`)
+  
+  // Create a simple rectangular boundary around the object
+  const boundary: number[][] = []
+  
+  // Top edge (left to right)
+  for (let x = minX; x <= maxX; x++) {
+    boundary.push([x, minY])
+  }
+  
+  // Right edge (top to bottom)
+  for (let y = minY + 1; y <= maxY; y++) {
+    boundary.push([maxX, y])
+  }
+  
+  // Bottom edge (right to left)
+  for (let x = maxX - 1; x >= minX; x--) {
+    boundary.push([x, maxY])
+  }
+  
+  // Left edge (bottom to top)
+  for (let y = maxY - 1; y > minY; y--) {
+    boundary.push([minX, y])
+  }
+  
+  console.log(`Created outer boundary with ${boundary.length} points`)
+  
+  return boundary
+}
+
+// Find single outer boundary by tracing the actual edge of the shape
+function findSingleOuterBoundary(pixels: number[][], width: number, height: number): number[][] {
+  // Find the first black pixel to start tracing
+  let startX = -1, startY = -1
+  for (let y = 0; y < height && startX === -1; y++) {
+    for (let x = 0; x < width && startX === -1; x++) {
+      if (pixels[y][x] === 1) {
+        startX = x
+        startY = y
+      }
+    }
+  }
+  
+  if (startX === -1) return []
+  
+  console.log(`Starting boundary trace from (${startX}, ${startY})`)
+  
+  // Use a simple boundary tracing that follows the outer edge
+  const boundary: number[][] = []
+  const visited = new Set<string>()
+  
+  // Start from the top-left corner of the shape and trace clockwise
+  let currentX = startX
+  let currentY = startY
+  let direction = 0 // Start looking East
+  
+  // 8-directional movement
+  const directions = [
+    [1, 0],   // East
+    [1, -1],  // Northeast  
+    [0, -1],  // North
+    [-1, -1], // Northwest
+    [-1, 0],  // West
+    [-1, 1],  // Southwest
+    [0, 1],   // South
+    [1, 1]    // Southeast
+  ]
+  
+  boundary.push([currentX, -currentY]) // Invert Y for DXF
+  visited.add(`${currentX},${currentY}`)
+  
+  let iterations = 0
+  const maxIterations = width * height * 2
+  
+  while (iterations < maxIterations) {
+    let found = false
+    let nextX = -1, nextY = -1, nextDirection = -1
+    
+    // Look for the next boundary pixel
+    for (let i = 0; i < 8; i++) {
+      const dirIndex = (direction + i) % 8
+      const [dx, dy] = directions[dirIndex]
+      const testX = currentX + dx
+      const testY = currentY + dy
+      
+      if (testX >= 0 && testX < width && testY >= 0 && testY < height) {
+        if (pixels[testY][testX] === 1 && !visited.has(`${testX},${testY}`)) {
+          // Check if this pixel is on the boundary (has at least one white neighbor)
+          let hasWhiteNeighbor = false
+          for (let checkY = testY - 1; checkY <= testY + 1; checkY++) {
+            for (let checkX = testX - 1; checkX <= testX + 1; checkX++) {
+              if (checkX >= 0 && checkX < width && checkY >= 0 && checkY < height) {
+                if (pixels[checkY][checkX] === 0) {
+                  hasWhiteNeighbor = true
+                  break
+                }
+              } else {
+                // Edge of image counts as white
+                hasWhiteNeighbor = true
+                break
+              }
+            }
+            if (hasWhiteNeighbor) break
+          }
+          
+          if (hasWhiteNeighbor) {
+            nextX = testX
+            nextY = testY
+            nextDirection = (dirIndex + 6) % 8 // Turn left 90 degrees
+            found = true
+            break
+          }
+        }
+      }
+    }
+    
+    if (!found) break
+    
+    // Check if we've completed the loop
+    if (nextX === startX && nextY === startY && boundary.length > 3) {
+      console.log(`Completed boundary loop with ${boundary.length} points`)
+      break
+    }
+    
+    // Add the next point
+    boundary.push([nextX, -nextY])
+    visited.add(`${nextX},${nextY}`)
+    
+    currentX = nextX
+    currentY = nextY
+    direction = nextDirection
+    iterations++
+  }
+  
+  console.log(`Boundary tracing completed with ${boundary.length} points after ${iterations} iterations`)
+  return boundary
+}
+
+// Thin boundaries to single-pixel width using Zhang-Suen thinning algorithm
+function thinBoundaries(pixels: number[][], width: number, height: number): number[][] {
+  const thinned = pixels.map(row => [...row]) // Deep copy
+  let changed = true
+  let iteration = 0
+  const maxIterations = 50
+  
+  while (changed && iteration < maxIterations) {
+    changed = false
+    iteration++
+    
+    // Mark pixels for deletion in two passes
+    const toDelete = new Set<string>()
+    
+    // Pass 1: Mark pixels for deletion
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        if (thinned[y][x] === 1) {
+          const neighbors = getNeighbors(thinned, x, y, width, height)
+          if (shouldDelete(neighbors, 1)) {
+            toDelete.add(`${x},${y}`)
+          }
+        }
+      }
+    }
+    
+    // Delete marked pixels
+    for (const coord of toDelete) {
+      const [x, y] = coord.split(',').map(Number)
+      thinned[y][x] = 0
+      changed = true
+    }
+    
+    // Pass 2: Mark pixels for deletion
+    toDelete.clear()
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        if (thinned[y][x] === 1) {
+          const neighbors = getNeighbors(thinned, x, y, width, height)
+          if (shouldDelete(neighbors, 2)) {
+            toDelete.add(`${x},${y}`)
+          }
+        }
+      }
+    }
+    
+    // Delete marked pixels
+    for (const coord of toDelete) {
+      const [x, y] = coord.split(',').map(Number)
+      thinned[y][x] = 0
+      changed = true
+    }
+  }
+  
+  console.log(`Thinning completed after ${iteration} iterations`)
+  return thinned
+}
+
+// Get 8-connected neighbors
+function getNeighbors(pixels: number[][], x: number, y: number, width: number, height: number): number[] {
+  const neighbors = []
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue
+      const nx = x + dx
+      const ny = y + dy
+      if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+        neighbors.push(pixels[ny][nx])
+      } else {
+        neighbors.push(0) // Edge counts as background
+      }
+    }
+  }
+  return neighbors
+}
+
+// Check if pixel should be deleted in Zhang-Suen thinning
+function shouldDelete(neighbors: number[], pass: number): boolean {
+  // Count transitions from 0 to 1
+  let transitions = 0
+  for (let i = 0; i < 8; i++) {
+    const current = neighbors[i]
+    const next = neighbors[(i + 1) % 8]
+    if (current === 0 && next === 1) {
+      transitions++
+    }
+  }
+  
+  // Count black neighbors
+  const blackNeighbors = neighbors.filter(n => n === 1).length
+  
+  if (pass === 1) {
+    return transitions === 1 && 
+           blackNeighbors >= 2 && 
+           blackNeighbors <= 6 &&
+           neighbors[0] * neighbors[2] * neighbors[4] === 0 &&
+           neighbors[2] * neighbors[4] * neighbors[6] === 0
+  } else {
+    return transitions === 1 && 
+           blackNeighbors >= 2 && 
+           blackNeighbors <= 6 &&
+           neighbors[0] * neighbors[2] * neighbors[6] === 0 &&
+           neighbors[0] * neighbors[4] * neighbors[6] === 0
+  }
 }
 
 // Find perfect contour using proper boundary detection
@@ -324,80 +649,23 @@ function traceEdgeBoundary(edges: number[][], width: number, height: number, thr
 }
 
 // Trace a single clean boundary line using improved algorithm
-function traceSingleBoundary(pixels: number[][], width: number, height: number): number[][] {
-  // Find the first black pixel to start
-  let startX = -1, startY = -1
-  for (let y = 0; y < height && startX === -1; y++) {
-    for (let x = 0; x < width && startX === -1; x++) {
-      if (pixels[y][x] === 1) {
-        startX = x
-        startY = y
-      }
-    }
-  }
-  
-  if (startX === -1) return []
-  
-  const boundary: number[][] = []
-  const visited = new Set<string>()
-  
-  // Use 8-connected neighborhood for boundary following
-  const directions = [
-    [-1, -1], [-1, 0], [-1, 1],
-    [0, -1],           [0, 1],
-    [1, -1],  [1, 0],  [1, 1]
-  ]
-  
-  let currentX = startX
-  let currentY = startY
-  let direction = 0 // Start looking in the first direction
-  
-  boundary.push([currentX, -currentY])
-  visited.add(`${currentX},${currentY}`)
-  
-  let iterations = 0
-  const maxIterations = width * height * 2
-  
-  while (iterations < maxIterations) {
-    let found = false
-    let nextX = -1, nextY = -1, nextDirection = -1
-    
-    // Look for the next boundary pixel in all 8 directions
-    for (let i = 0; i < 8; i++) {
-      const dirIndex = (direction + i) % 8
-      const [dx, dy] = directions[dirIndex]
-      const testX = currentX + dx
-      const testY = currentY + dy
-      
-      if (testX >= 0 && testX < width && testY >= 0 && testY < height) {
-        if (pixels[testY][testX] === 1) {
-          nextX = testX
-          nextY = testY
-          nextDirection = (dirIndex + 6) % 8 // Turn left 90 degrees
-          found = true
-          break
+function traceSingleBoundary(pixels: number[][], width: number, height: number, startX?: number, startY?: number): number[][] {
+  // Find the first black pixel to start if not provided
+  if (startX === undefined || startY === undefined) {
+    for (let y = 0; y < height && startX === undefined; y++) {
+      for (let x = 0; x < width && startX === undefined; x++) {
+        if (pixels[y][x] === 1) {
+          startX = x
+          startY = y
         }
       }
     }
-    
-    if (!found) break
-    
-    // Check if we've completed the loop
-    if (nextX === startX && nextY === startY && boundary.length > 3) {
-      break
-    }
-    
-    // Add the next point
-    boundary.push([nextX, -nextY])
-    visited.add(`${nextX},${nextY}`)
-    
-    currentX = nextX
-    currentY = nextY
-    direction = nextDirection
-    iterations++
   }
   
-  return boundary
+  if (startX === undefined || startY === undefined) return []
+  
+  // Use the more robust boundary tracing algorithm
+  return findPerfectContour(pixels, width, height)
 }
 
 
@@ -595,6 +863,9 @@ function straightenNearOrthogonalLines(contour: number[][]): number[][] {
   const tolerance = 0.03 // 0.03 radians ≈ 1.72 degrees
   let straightenedCount = 0
   
+  // Start with the first point
+  straightened.push(contour[0])
+  
   for (let i = 0; i < contour.length; i++) {
     const current = contour[i]
     const next = contour[(i + 1) % contour.length]
@@ -616,13 +887,6 @@ function straightenNearOrthogonalLines(contour: number[][]): number[][] {
     const isNearVertical = Math.abs(normalizedAngle - Math.PI/2) < tolerance || 
                           Math.abs(normalizedAngle - 3 * Math.PI/2) < tolerance
     
-    // Debug logging for lines that should be straightened but aren't
-    if (Math.abs(normalizedAngle) < tolerance * 2 || Math.abs(normalizedAngle - Math.PI) < tolerance * 2 || 
-        Math.abs(normalizedAngle - Math.PI/2) < tolerance * 2 || Math.abs(normalizedAngle - 3 * Math.PI/2) < tolerance * 2) {
-      const degrees = (normalizedAngle * 180 / Math.PI).toFixed(2)
-      console.log(`Line segment ${i}: normalizedAngle=${degrees}°, dx=${dx.toFixed(4)}, dy=${dy.toFixed(4)}, nearHorizontal=${isNearHorizontal}, nearVertical=${isNearVertical}`)
-    }
-    
     if (isNearHorizontal) {
       // Make it perfectly horizontal (dy = 0)
       const straightenedNext = [next[0], current[1]]
@@ -642,6 +906,44 @@ function straightenNearOrthogonalLines(contour: number[][]): number[][] {
   console.log(`Line straightening: ${straightenedCount} out of ${contour.length} line segments were straightened`)
   
   return straightened
+}
+
+// Remove duplicate points that are very close to each other
+function removeDuplicatePoints(contour: number[][], tolerance: number = 0.001): number[][] {
+  if (contour.length < 2) return contour
+  
+  const cleaned: number[][] = [contour[0]]
+  
+  for (let i = 1; i < contour.length; i++) {
+    const current = contour[i]
+    const last = cleaned[cleaned.length - 1]
+    
+    const dx = current[0] - last[0]
+    const dy = current[1] - last[1]
+    const distance = Math.sqrt(dx * dx + dy * dy)
+    
+    // Only add the point if it's far enough from the last point
+    if (distance > tolerance) {
+      cleaned.push(current)
+    }
+  }
+  
+  // Also check if the last point is too close to the first point (for closed contours)
+  if (cleaned.length > 2) {
+    const first = cleaned[0]
+    const last = cleaned[cleaned.length - 1]
+    const dx = last[0] - first[0]
+    const dy = last[1] - first[1]
+    const distance = Math.sqrt(dx * dx + dy * dy)
+    
+    if (distance < tolerance) {
+      cleaned.pop() // Remove the last point if it's too close to the first
+    }
+  }
+  
+  console.log(`Duplicate removal: ${contour.length} points → ${cleaned.length} points`)
+  
+  return cleaned
 }
 
 // Apply moving average smoothing
@@ -726,6 +1028,37 @@ function applyMorphology(pixels: number[][], width: number, height: number): num
     }
   }
   
+  return result
+}
+
+// Apply morphological cleanup to image data buffer
+function applyMorphologicalCleanup(imageData: Buffer, width: number, height: number): Buffer {
+  // Convert buffer to 2D array
+  const pixels: number[][] = []
+  for (let y = 0; y < height; y++) {
+    pixels[y] = []
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x
+      pixels[y][x] = imageData[idx] < 128 ? 1 : 0
+    }
+  }
+  
+  // Apply opening (erosion followed by dilation) to remove noise
+  const opened = applyMorphology(pixels, width, height)
+  
+  // Apply closing (dilation followed by erosion) to fill small gaps
+  const closed = applyMorphology(opened, width, height)
+  
+  // Convert back to buffer
+  const result = Buffer.alloc(imageData.length)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x
+      result[idx] = closed[y][x] === 1 ? 0 : 255
+    }
+  }
+  
+  console.log(`Applied morphological cleanup to ${width}x${height} image`)
   return result
 }
 
@@ -915,18 +1248,27 @@ async function convertRasterToDxf(imageBuffer: Buffer, options: ConversionOption
     // 2. Find contours using our improved edge-following algorithm
     const contours = findContours(imageData, imageWidth, imageHeight, threshold)
     
+    console.log(`Found ${contours.length} contours`)
+    
     // 3. Create DXF with contours as polylines
     const writer = new SimpleDxfWriter()
     
     // Create a single clean line from the boundary
     if (contours.length > 0 && contours[0].length > 2) {
+      console.log(`Using first contour with ${contours[0].length} points`)
+      
+      // If there are multiple contours, warn about it
+      if (contours.length > 1) {
+        console.log(`WARNING: Found ${contours.length} contours, using only the first one. This might cause incomplete DXF output.`)
+      }
+      
       const boundary = contours[0]
       
       // Clean up the path for crisp lines
-      const cleanedPath = cleanPath(boundary)
+      const initialCleanedPath = cleanPath(boundary)
       
       // Apply smoothing to remove wavy lines
-      const smoothedPath = smoothContour(cleanedPath)
+      const smoothedPath = smoothContour(initialCleanedPath)
       
       // Apply minimal simplification to preserve detail
       const simplifiedPath = simplify ? simplifyContour(smoothedPath, simplify * 0.3) : smoothedPath
@@ -934,8 +1276,11 @@ async function convertRasterToDxf(imageBuffer: Buffer, options: ConversionOption
       // Straighten lines that are very close to 0° or 90°
       const straightenedPath = straightenNearOrthogonalLines(simplifiedPath)
       
+      // Remove duplicate points that might cause overlapping lines
+      const deduplicatedPath = removeDuplicatePoints(straightenedPath)
+      
       // Scale the path to the desired dimension
-      const scaledPath = scaleContour(straightenedPath, dimensionControl === 'width' ? width : height, dimensionControl === 'width' ? imageWidth : imageHeight, dimensionControl)
+      const scaledPath = scaleContour(deduplicatedPath, dimensionControl === 'width' ? width : height, dimensionControl === 'width' ? imageWidth : imageHeight, dimensionControl)
       
       // Create as a single polyline
       writer.addPolyline(scaledPath, {
