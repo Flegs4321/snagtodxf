@@ -587,6 +587,63 @@ function scaleContour(contour: number[][], targetDimensionInches: number, imageD
   return scaledContour
 }
 
+// Straighten lines that are very close to 0° or 90° (within 0.03 radians)
+function straightenNearOrthogonalLines(contour: number[][]): number[][] {
+  if (contour.length < 2) return contour
+  
+  const straightened: number[][] = []
+  const tolerance = 0.03 // 0.03 radians ≈ 1.72 degrees
+  let straightenedCount = 0
+  
+  for (let i = 0; i < contour.length; i++) {
+    const current = contour[i]
+    const next = contour[(i + 1) % contour.length]
+    
+    // Calculate the angle of the line segment
+    const dx = next[0] - current[0]
+    const dy = next[1] - current[1]
+    const angle = Math.atan2(dy, dx)
+    
+    // Normalize angle to 0 to 2π range
+    let normalizedAngle = angle
+    while (normalizedAngle < 0) normalizedAngle += 2 * Math.PI
+    while (normalizedAngle >= 2 * Math.PI) normalizedAngle -= 2 * Math.PI
+    
+    // Check if the angle is close to 0° (horizontal) or 90° (vertical)
+    const isNearHorizontal = Math.abs(normalizedAngle) < tolerance || 
+                            Math.abs(normalizedAngle - Math.PI) < tolerance || 
+                            Math.abs(normalizedAngle - 2 * Math.PI) < tolerance
+    const isNearVertical = Math.abs(normalizedAngle - Math.PI/2) < tolerance || 
+                          Math.abs(normalizedAngle - 3 * Math.PI/2) < tolerance
+    
+    // Debug logging for lines that should be straightened but aren't
+    if (Math.abs(normalizedAngle) < tolerance * 2 || Math.abs(normalizedAngle - Math.PI) < tolerance * 2 || 
+        Math.abs(normalizedAngle - Math.PI/2) < tolerance * 2 || Math.abs(normalizedAngle - 3 * Math.PI/2) < tolerance * 2) {
+      const degrees = (normalizedAngle * 180 / Math.PI).toFixed(2)
+      console.log(`Line segment ${i}: normalizedAngle=${degrees}°, dx=${dx.toFixed(4)}, dy=${dy.toFixed(4)}, nearHorizontal=${isNearHorizontal}, nearVertical=${isNearVertical}`)
+    }
+    
+    if (isNearHorizontal) {
+      // Make it perfectly horizontal (dy = 0)
+      const straightenedNext = [next[0], current[1]]
+      straightened.push(straightenedNext)
+      straightenedCount++
+    } else if (isNearVertical) {
+      // Make it perfectly vertical (dx = 0)
+      const straightenedNext = [current[0], next[1]]
+      straightened.push(straightenedNext)
+      straightenedCount++
+    } else {
+      // Keep the original point
+      straightened.push(next)
+    }
+  }
+  
+  console.log(`Line straightening: ${straightenedCount} out of ${contour.length} line segments were straightened`)
+  
+  return straightened
+}
+
 // Apply moving average smoothing
 function applyMovingAverage(contour: number[][], windowSize: number): number[][] {
   if (contour.length < windowSize) return contour
@@ -874,8 +931,11 @@ async function convertRasterToDxf(imageBuffer: Buffer, options: ConversionOption
       // Apply minimal simplification to preserve detail
       const simplifiedPath = simplify ? simplifyContour(smoothedPath, simplify * 0.3) : smoothedPath
       
+      // Straighten lines that are very close to 0° or 90°
+      const straightenedPath = straightenNearOrthogonalLines(simplifiedPath)
+      
       // Scale the path to the desired dimension
-      const scaledPath = scaleContour(simplifiedPath, dimensionControl === 'width' ? width : height, dimensionControl === 'width' ? imageWidth : imageHeight, dimensionControl)
+      const scaledPath = scaleContour(straightenedPath, dimensionControl === 'width' ? width : height, dimensionControl === 'width' ? imageWidth : imageHeight, dimensionControl)
       
       // Create as a single polyline
       writer.addPolyline(scaledPath, {
