@@ -162,55 +162,36 @@ export default function UploadCard() {
       {/* Header */}
       <div className="text-center mb-8">
         <div className="flex items-center justify-center mb-2">
-          <div className="mr-4">
-            <svg width="80" height="60" viewBox="0 0 80 60" className="text-blue-600">
-              {/* Camera body */}
-              <rect x="20" y="25" width="40" height="25" rx="3" fill="#f3f4f6" stroke="currentColor" strokeWidth="2" />
+          <div className="mr-1">
+            <svg width="80" height="60" viewBox="0 0 80 60" className="text-gray-800">
+              {/* Panda head */}
+              <circle cx="40" cy="30" r="18" fill="white" stroke="currentColor" strokeWidth="2" />
               
-              {/* Camera lens */}
-              <circle cx="40" cy="37" r="12" fill="#1f2937" stroke="currentColor" strokeWidth="2" />
-              <circle cx="40" cy="37" r="8" fill="#374151" />
-              <circle cx="40" cy="37" r="4" fill="#6b7280" />
+              {/* Panda ears */}
+              <circle cx="28" cy="18" r="8" fill="currentColor" />
+              <circle cx="52" cy="18" r="8" fill="currentColor" />
+              <circle cx="28" cy="18" r="5" fill="white" />
+              <circle cx="52" cy="18" r="5" fill="white" />
               
-              {/* Camera flash */}
-              <rect x="45" y="20" width="8" height="6" rx="1" fill="#fbbf24" stroke="currentColor" strokeWidth="1" />
+              {/* Panda eyes */}
+              <ellipse cx="32" cy="26" rx="6" ry="8" fill="currentColor" />
+              <ellipse cx="48" cy="26" rx="6" ry="8" fill="currentColor" />
+              <circle cx="32" cy="28" r="3" fill="white" />
+              <circle cx="48" cy="28" r="3" fill="white" />
               
-              {/* Camera viewfinder */}
-              <rect x="25" y="15" width="12" height="8" rx="1" fill="#e5e7eb" stroke="currentColor" strokeWidth="1" />
-              <rect x="27" y="17" width="8" height="4" fill="#9ca3af" />
+              {/* Panda nose */}
+              <ellipse cx="40" cy="32" rx="2" ry="1.5" fill="currentColor" />
               
-              {/* Funny eyes on camera */}
-              <circle cx="35" cy="32" r="2" fill="currentColor" />
-              <circle cx="45" cy="32" r="2" fill="currentColor" />
+              {/* Panda mouth */}
+              <path d="M40 34 Q35 38 30 36" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+              <path d="M40 34 Q45 38 50 36" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
               
-              {/* Funny mouth */}
-              <path d="M35 42 Q40 46 45 42" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
-              
-              {/* Camera strap */}
-              <path d="M15 30 Q10 20 20 25" stroke="#8b5cf6" strokeWidth="3" fill="none" strokeLinecap="round" />
-              <path d="M65 30 Q70 20 60 25" stroke="#8b5cf6" strokeWidth="3" fill="none" strokeLinecap="round" />
-              
-              {/* Magic sparkles around camera */}
-              <path d="M10 15 L12 17 L10 19 L8 17 Z" fill="#fbbf24" />
-              <path d="M70 20 L72 22 L70 24 L68 22 Z" fill="#fbbf24" />
-              <path d="M15 45 L17 47 L15 49 L13 47 Z" fill="#fbbf24" />
-              <path d="M65 45 L67 47 L65 49 L63 47 Z" fill="#fbbf24" />
-              
-              {/* "Snap!" text bubble */}
-              <ellipse cx="55" cy="15" rx="12" ry="6" fill="#fef3c7" stroke="#f59e0b" strokeWidth="1" />
-              <text x="55" y="18" textAnchor="middle" className="text-xs font-bold fill-amber-800">SNAP!</text>
-              
-              {/* Arrow pointing to DXF */}
-              <path d="M65 35 L75 35 L75 25 L80 30 L75 35 L75 45" stroke="#10b981" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-              
-              {/* DXF file with happy face */}
-              <rect x="70" y="25" width="8" height="12" fill="#f3f4f6" stroke="#10b981" strokeWidth="1" />
-              <circle cx="72" cy="28" r="0.5" fill="#10b981" />
-              <circle cx="76" cy="28" r="0.5" fill="#10b981" />
-              <path d="M72 31 Q74 33 76 31" stroke="#10b981" strokeWidth="0.5" fill="none" strokeLinecap="round" />
+              {/* Panda cheeks */}
+              <circle cx="25" cy="35" r="3" fill="#fbbf24" opacity="0.6" />
+              <circle cx="55" cy="35" r="3" fill="#fbbf24" opacity="0.6" />
             </svg>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900">Snap2DXF</h1>
+          <h1 className="text-4xl font-black text-red-600 tracking-tight">Snap2DXF</h1>
         </div>
         <p className="text-gray-600">Easily Convert PNG/JPEG screenshots to DXF files</p>
       </div>
