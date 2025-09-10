@@ -7,6 +7,9 @@ interface ConversionSettings {
   threshold: number
   simplify: number
   storeInSupabase: boolean
+  width: number
+  height: number
+  dimensionControl: 'width' | 'height'
 }
 
 interface ConversionResult {
@@ -25,8 +28,13 @@ export default function UploadCard() {
   const [settings, setSettings] = useState<ConversionSettings>({
     threshold: 128,
     simplify: 0.1,
-    storeInSupabase: false
+    storeInSupabase: false,
+    width: 1.0, // Default width in inches
+    height: 1.0, // Default height in inches
+    dimensionControl: 'width' // Default to width control
   })
+  const [widthInput, setWidthInput] = useState<string>('1.0')
+  const [heightInput, setHeightInput] = useState<string>('1.0')
   
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -89,6 +97,9 @@ export default function UploadCard() {
       formData.append('threshold', settings.threshold.toString())
       formData.append('simplify', settings.simplify.toString())
       formData.append('storeInSupabase', settings.storeInSupabase.toString())
+      formData.append('width', settings.width.toString())
+      formData.append('height', settings.height.toString())
+      formData.append('dimensionControl', settings.dimensionControl)
 
       const response = await fetch('/api/convert', {
         method: 'POST',
@@ -138,6 +149,9 @@ export default function UploadCard() {
     setPreview(null)
     setResult(null)
     setConverting(false)
+    setWidthInput('1.0')
+    setHeightInput('1.0')
+    setSettings(prev => ({ ...prev, width: 1.0, height: 1.0, dimensionControl: 'width' }))
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -150,37 +164,50 @@ export default function UploadCard() {
         <div className="flex items-center justify-center mb-2">
           <div className="mr-4">
             <svg width="80" height="60" viewBox="0 0 80 60" className="text-blue-600">
-              {/* File being broken - left half */}
-              <rect x="15" y="20" width="25" height="35" fill="#f3f4f6" stroke="currentColor" strokeWidth="2" />
-              <rect x="17" y="25" width="21" height="2" fill="currentColor" />
-              <rect x="17" y="30" width="18" height="2" fill="currentColor" />
-              <rect x="17" y="35" width="21" height="2" fill="currentColor" />
-              <rect x="17" y="40" width="15" height="2" fill="currentColor" />
-              <rect x="17" y="45" width="21" height="2" fill="currentColor" />
+              {/* Camera body */}
+              <rect x="20" y="25" width="40" height="25" rx="3" fill="#f3f4f6" stroke="currentColor" strokeWidth="2" />
               
-              {/* File being broken - right half */}
-              <rect x="40" y="20" width="25" height="35" fill="#f3f4f6" stroke="currentColor" strokeWidth="2" />
-              <rect x="42" y="25" width="21" height="2" fill="currentColor" />
-              <rect x="45" y="30" width="18" height="2" fill="currentColor" />
-              <rect x="42" y="35" width="21" height="2" fill="currentColor" />
-              <rect x="48" y="40" width="15" height="2" fill="currentColor" />
-              <rect x="42" y="45" width="21" height="2" fill="currentColor" />
+              {/* Camera lens */}
+              <circle cx="40" cy="37" r="12" fill="#1f2937" stroke="currentColor" strokeWidth="2" />
+              <circle cx="40" cy="37" r="8" fill="#374151" />
+              <circle cx="40" cy="37" r="4" fill="#6b7280" />
               
-              {/* Crack/break line */}
-              <path d="M40 20 L40 55" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              {/* Camera flash */}
+              <rect x="45" y="20" width="8" height="6" rx="1" fill="#fbbf24" stroke="currentColor" strokeWidth="1" />
               
-              {/* Lightning bolt effect */}
-              <path d="M35 15 L45 25 L40 25 L50 35" stroke="#fbbf24" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              {/* Camera viewfinder */}
+              <rect x="25" y="15" width="12" height="8" rx="1" fill="#e5e7eb" stroke="currentColor" strokeWidth="1" />
+              <rect x="27" y="17" width="8" height="4" fill="#9ca3af" />
               
-              {/* File corner fold */}
-              <path d="M15 20 L25 20 L25 30 L15 20" fill="#e5e7eb" stroke="currentColor" strokeWidth="1" />
-              <path d="M40 20 L50 20 L50 30 L40 20" fill="#e5e7eb" stroke="currentColor" strokeWidth="1" />
+              {/* Funny eyes on camera */}
+              <circle cx="35" cy="32" r="2" fill="currentColor" />
+              <circle cx="45" cy="32" r="2" fill="currentColor" />
               
-              {/* Breaking particles */}
-              <circle cx="30" cy="15" r="1" fill="#fbbf24" />
-              <circle cx="50" cy="12" r="1" fill="#fbbf24" />
-              <circle cx="25" cy="18" r="1" fill="#fbbf24" />
-              <circle cx="55" cy="18" r="1" fill="#fbbf24" />
+              {/* Funny mouth */}
+              <path d="M35 42 Q40 46 45 42" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+              
+              {/* Camera strap */}
+              <path d="M15 30 Q10 20 20 25" stroke="#8b5cf6" strokeWidth="3" fill="none" strokeLinecap="round" />
+              <path d="M65 30 Q70 20 60 25" stroke="#8b5cf6" strokeWidth="3" fill="none" strokeLinecap="round" />
+              
+              {/* Magic sparkles around camera */}
+              <path d="M10 15 L12 17 L10 19 L8 17 Z" fill="#fbbf24" />
+              <path d="M70 20 L72 22 L70 24 L68 22 Z" fill="#fbbf24" />
+              <path d="M15 45 L17 47 L15 49 L13 47 Z" fill="#fbbf24" />
+              <path d="M65 45 L67 47 L65 49 L63 47 Z" fill="#fbbf24" />
+              
+              {/* "Snap!" text bubble */}
+              <ellipse cx="55" cy="15" rx="12" ry="6" fill="#fef3c7" stroke="#f59e0b" strokeWidth="1" />
+              <text x="55" y="18" textAnchor="middle" className="text-xs font-bold fill-amber-800">SNAP!</text>
+              
+              {/* Arrow pointing to DXF */}
+              <path d="M65 35 L75 35 L75 25 L80 30 L75 35 L75 45" stroke="#10b981" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              
+              {/* DXF file with happy face */}
+              <rect x="70" y="25" width="8" height="12" fill="#f3f4f6" stroke="#10b981" strokeWidth="1" />
+              <circle cx="72" cy="28" r="0.5" fill="#10b981" />
+              <circle cx="76" cy="28" r="0.5" fill="#10b981" />
+              <path d="M72 31 Q74 33 76 31" stroke="#10b981" strokeWidth="0.5" fill="none" strokeLinecap="round" />
             </svg>
           </div>
           <h1 className="text-4xl font-bold text-gray-900">Snap2DXF</h1>
@@ -236,11 +263,13 @@ export default function UploadCard() {
           <div className="space-y-4">
             {/* Preview */}
             <div className="text-center relative">
-              <img
-                src={preview || ''}
-                alt="Preview"
-                className="max-w-full max-h-64 mx-auto rounded-lg shadow-sm"
-              />
+              {preview && (
+                <img
+                  src={preview}
+                  alt="Preview"
+                  className="max-w-full max-h-64 mx-auto rounded-lg shadow-sm"
+                />
+              )}
               <button
                 onClick={reset}
                 className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600 transition-colors"
@@ -287,6 +316,105 @@ export default function UploadCard() {
                 <div className="flex justify-between text-xs text-gray-500 mt-1">
                   <span>Complex</span>
                   <span>Simple</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  DXF Dimensions
+                </label>
+                
+                {/* Toggle for width vs height control */}
+                <div className="flex mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setSettings(prev => ({ ...prev, dimensionControl: 'width' }))}
+                    className={`px-4 py-2 text-sm font-medium rounded-l-lg border ${
+                      settings.dimensionControl === 'width'
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Control Width
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSettings(prev => ({ ...prev, dimensionControl: 'height' }))}
+                    className={`px-4 py-2 text-sm font-medium rounded-r-lg border-t border-r border-b ${
+                      settings.dimensionControl === 'height'
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Control Height
+                  </button>
+                </div>
+
+                {/* Width input (shown when width control is selected) */}
+                {settings.dimensionControl === 'width' && (
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={widthInput}
+                      onChange={(e) => {
+                        const inputValue = e.target.value
+                        setWidthInput(inputValue)
+                        
+                        // Only update the actual settings when we have a valid number
+                        const value = parseFloat(inputValue)
+                        if (!isNaN(value) && value > 0) {
+                          setSettings(prev => ({ ...prev, width: value }))
+                        }
+                      }}
+                      onBlur={() => {
+                        // On blur, ensure we have a valid value, otherwise reset to current settings
+                        const value = parseFloat(widthInput)
+                        if (isNaN(value) || value <= 0) {
+                          setWidthInput(settings.width.toString())
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Enter width in inches (e.g., 2.25)"
+                    />
+                    <span className="text-sm text-gray-500">"</span>
+                  </div>
+                )}
+
+                {/* Height input (shown when height control is selected) */}
+                {settings.dimensionControl === 'height' && (
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={heightInput}
+                      onChange={(e) => {
+                        const inputValue = e.target.value
+                        setHeightInput(inputValue)
+                        
+                        // Only update the actual settings when we have a valid number
+                        const value = parseFloat(inputValue)
+                        if (!isNaN(value) && value > 0) {
+                          setSettings(prev => ({ ...prev, height: value }))
+                        }
+                      }}
+                      onBlur={() => {
+                        // On blur, ensure we have a valid value, otherwise reset to current settings
+                        const value = parseFloat(heightInput)
+                        if (isNaN(value) || value <= 0) {
+                          setHeightInput(settings.height.toString())
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Enter height in inches (e.g., 0.75)"
+                    />
+                    <span className="text-sm text-gray-500">"</span>
+                  </div>
+                )}
+
+                <div className="text-xs text-gray-500 mt-1">
+                  {settings.dimensionControl === 'width' 
+                    ? 'Width will be set to your value, height will scale proportionally'
+                    : 'Height will be set to your value, width will scale proportionally'
+                  }
                 </div>
               </div>
 

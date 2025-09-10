@@ -13,6 +13,9 @@ interface ConversionOptions {
   threshold?: number
   simplify?: number
   storeInSupabase?: boolean
+  width?: number
+  height?: number
+  dimensionControl?: 'width' | 'height'
 }
 
 // Ultra-simple DXF writer for maximum compatibility
@@ -537,6 +540,53 @@ function smoothContour(contour: number[][]): number[][] {
   return smoothed
 }
 
+// Scale contour to desired dimension (in inches)
+function scaleContour(contour: number[][], targetDimensionInches: number, imageDimensionPixels: number, dimensionControl: 'width' | 'height'): number[][] {
+  if (contour.length === 0) return contour
+  
+  // Always scale based on the full image dimension, not the contour dimension
+  // This ensures consistent scaling regardless of contour detection quality
+  const currentDimensionPixels = imageDimensionPixels
+  
+  // DXF files typically use inches as the base unit, not millimeters
+  // So we'll work directly in inches
+  
+  // Calculate scale factor: target dimension in inches / image dimension in pixels
+  // This gives us inches per pixel
+  const scaleFactor = targetDimensionInches / currentDimensionPixels
+  
+  // Debug logging
+  console.log(`Scaling debug:`)
+  console.log(`  Target ${dimensionControl}: ${targetDimensionInches} inches`)
+  console.log(`  Image ${dimensionControl}: ${imageDimensionPixels} pixels`)
+  console.log(`  Scale factor: ${scaleFactor} inches/pixel`)
+  console.log(`  Contour points count: ${contour.length}`)
+  console.log(`  Sample contour points (first 3):`, contour.slice(0, 3))
+  
+  // Scale all points from pixels to inches
+  const scaledContour = contour.map(([x, y]) => [
+    x * scaleFactor,
+    y * scaleFactor
+  ])
+  
+  console.log(`  Sample scaled points (first 3):`, scaledContour.slice(0, 3))
+  
+  // Calculate final dimensions for verification
+  let finalMinX = Infinity, finalMaxX = -Infinity, finalMinY = Infinity, finalMaxY = -Infinity
+  for (const [x, y] of scaledContour) {
+    finalMinX = Math.min(finalMinX, x)
+    finalMaxX = Math.max(finalMaxX, x)
+    finalMinY = Math.min(finalMinY, y)
+    finalMaxY = Math.max(finalMaxY, y)
+  }
+  const finalWidthInches = finalMaxX - finalMinX
+  const finalHeightInches = finalMaxY - finalMinY
+  console.log(`  Final width: ${finalWidthInches} inches`)
+  console.log(`  Final height: ${finalHeightInches} inches`)
+  
+  return scaledContour
+}
+
 // Apply moving average smoothing
 function applyMovingAverage(contour: number[][], windowSize: number): number[][] {
   if (contour.length < windowSize) return contour
@@ -780,7 +830,7 @@ function traceContour(pixels: number[][], startX: number, startY: number, width:
 }
 
 async function convertRasterToDxf(imageBuffer: Buffer, options: ConversionOptions = {}): Promise<string> {
-  const { threshold = 128, simplify = 0.1 } = options
+  const { threshold = 128, simplify = 0.1, width = 1.0, height = 1.0, dimensionControl = 'width' } = options
   
   try {
     // 1. Process image with Sharp for maximum detail preservation
@@ -796,11 +846,17 @@ async function convertRasterToDxf(imageBuffer: Buffer, options: ConversionOption
       .raw()
       .toBuffer({ resolveWithObject: true })
 
-    const width = info.width
-    const height = info.height
+    const imageWidth = info.width
+    const imageHeight = info.height
+    
+    console.log(`Image processing debug:`)
+    console.log(`  Original image: ${imageWidth}x${imageHeight} pixels`)
+    console.log(`  Dimension control: ${dimensionControl}`)
+    console.log(`  Target ${dimensionControl}: ${dimensionControl === 'width' ? width : height} inches`)
+    console.log(`  Scale factor will be: ${dimensionControl === 'width' ? width : height} / ${dimensionControl === 'width' ? imageWidth : imageHeight} = ${dimensionControl === 'width' ? width / imageWidth : height / imageHeight}`)
     
     // 2. Find contours using our improved edge-following algorithm
-    const contours = findContours(imageData, width, height, threshold)
+    const contours = findContours(imageData, imageWidth, imageHeight, threshold)
     
     // 3. Create DXF with contours as polylines
     const writer = new SimpleDxfWriter()
@@ -818,8 +874,11 @@ async function convertRasterToDxf(imageBuffer: Buffer, options: ConversionOption
       // Apply minimal simplification to preserve detail
       const simplifiedPath = simplify ? simplifyContour(smoothedPath, simplify * 0.3) : smoothedPath
       
+      // Scale the path to the desired dimension
+      const scaledPath = scaleContour(simplifiedPath, dimensionControl === 'width' ? width : height, dimensionControl === 'width' ? imageWidth : imageHeight, dimensionControl)
+      
       // Create as a single polyline
-      writer.addPolyline(simplifiedPath, {
+      writer.addPolyline(scaledPath, {
         layer: '0',
         closed: true
       })
@@ -952,6 +1011,9 @@ export async function POST(request: NextRequest) {
     const threshold = parseInt(formData.get('threshold') as string) || 128
     const simplify = parseFloat(formData.get('simplify') as string) || 0.1
     const storeInSupabase = formData.get('storeInSupabase') === 'true'
+    const width = parseFloat(formData.get('width') as string) || 1.0
+    const height = parseFloat(formData.get('height') as string) || 1.0
+    const dimensionControl = (formData.get('dimensionControl') as 'width' | 'height') || 'width'
 
     // Validate file
     if (!file) {
@@ -986,7 +1048,10 @@ export async function POST(request: NextRequest) {
     const dxfContent = await convertRasterToDxf(imageBuffer, {
       threshold,
       simplify,
-      storeInSupabase
+      storeInSupabase,
+      width,
+      height,
+      dimensionControl
     })
 
     // Store in Supabase if requested and configured
