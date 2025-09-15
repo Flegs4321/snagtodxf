@@ -29,12 +29,12 @@ export default function UploadCard() {
     threshold: 128,
     simplify: 0.1,
     storeInSupabase: false,
-    width: 1.0, // Default width in inches
-    height: 1.0, // Default height in inches
+    width: 2.25, // Default width in inches (2 1/4")
+    height: 0.75, // Default height in inches (3/4")
     dimensionControl: 'width' // Default to width control
   })
-  const [widthInput, setWidthInput] = useState<string>('1.0')
-  const [heightInput, setHeightInput] = useState<string>('1.0')
+  const [widthInput, setWidthInput] = useState<string>('2.25')
+  const [heightInput, setHeightInput] = useState<string>('0.75')
   
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -149,9 +149,9 @@ export default function UploadCard() {
     setPreview(null)
     setResult(null)
     setConverting(false)
-    setWidthInput('1.0')
-    setHeightInput('1.0')
-    setSettings(prev => ({ ...prev, width: 1.0, height: 1.0, dimensionControl: 'width' }))
+    setWidthInput('2.25')
+    setHeightInput('0.75')
+    setSettings(prev => ({ ...prev, width: 2.25, height: 0.75, dimensionControl: 'width' }))
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -161,39 +161,24 @@ export default function UploadCard() {
     <div className="max-w-2xl mx-auto p-6">
       {/* Header */}
       <div className="text-center mb-8">
-        <div className="flex items-center justify-center mb-2">
-          <div className="mr-1">
-            <svg width="80" height="60" viewBox="0 0 80 60" className="text-gray-800">
-              {/* Panda head */}
-              <circle cx="40" cy="30" r="18" fill="white" stroke="currentColor" strokeWidth="2" />
-              
-              {/* Panda ears */}
-              <circle cx="28" cy="18" r="8" fill="currentColor" />
-              <circle cx="52" cy="18" r="8" fill="currentColor" />
-              <circle cx="28" cy="18" r="5" fill="white" />
-              <circle cx="52" cy="18" r="5" fill="white" />
-              
-              {/* Panda eyes */}
-              <ellipse cx="32" cy="26" rx="6" ry="8" fill="currentColor" />
-              <ellipse cx="48" cy="26" rx="6" ry="8" fill="currentColor" />
-              <circle cx="32" cy="28" r="3" fill="white" />
-              <circle cx="48" cy="28" r="3" fill="white" />
-              
-              {/* Panda nose */}
-              <ellipse cx="40" cy="32" rx="2" ry="1.5" fill="currentColor" />
-              
-              {/* Panda mouth */}
-              <path d="M40 34 Q35 38 30 36" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
-              <path d="M40 34 Q45 38 50 36" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
-              
-              {/* Panda cheeks */}
-              <circle cx="25" cy="35" r="3" fill="#fbbf24" opacity="0.6" />
-              <circle cx="55" cy="35" r="3" fill="#fbbf24" opacity="0.6" />
-            </svg>
-          </div>
-          <h1 className="text-4xl font-black text-red-600 tracking-tight">Snap2DXF</h1>
+        <div className="text-center">
+          <h1 className="text-4xl font-black tracking-tight">
+            <span className="text-red-600">S</span>
+            <span className="text-black">n</span>
+            <span className="text-red-600">a</span>
+            <span className="text-black">p</span>
+            <span className="text-red-600">2</span>
+            <span className="text-black">D</span>
+            <span className="text-red-600">X</span>
+            <span className="text-black">F</span>
+          </h1>
+          <p className="text-sm font-bold text-black mt-1 underline">
+            <a href="https://cabinetexplore.com" target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition-colors">
+              From Cabinet Explore
+            </a>
+          </p>
         </div>
-        <p className="text-gray-600">Easily Convert PNG/JPEG screenshots to DXF files</p>
+        <p className="text-gray-600 mt-3">Easily Convert PNG/JPEG screenshots to DXF files</p>
       </div>
 
       {/* Upload Area */}
