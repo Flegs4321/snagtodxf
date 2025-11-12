@@ -109,21 +109,39 @@ export default function UploadCard() {
       })
 
       if (!response.ok) {
-        let message = 'Conversion failed'
+        const statusInfo = `${response.status} ${response.statusText || ''}`.trim()
+        let message = `Conversion failed (HTTP ${statusInfo})`
         const contentType = response.headers.get('content-type')
+
         try {
           if (contentType && contentType.includes('application/json')) {
             const errorData = await response.json()
-            message = errorData?.error || message
+            console.error('API error response (JSON):', errorData)
+            if (errorData?.error) {
+              message = `${message}: ${errorData.error}`
+            }
           } else {
             const text = await response.text()
-            message = text || message
+            console.error('API error response (text):', text)
+            if (text) {
+              message = `${message}: ${text}`
+            }
           }
         } catch (parseError) {
           console.warn('Failed to parse error response', parseError)
         }
+
         throw new Error(message)
       }
+
+      console.log('Conversion request succeeded', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: {
+          'X-Image-URL': response.headers.get('X-Image-URL'),
+          'X-DXF-URL': response.headers.get('X-DXF-URL'),
+        },
+      })
 
       // Get storage URLs from headers if available
       const imageUrl = response.headers.get('X-Image-URL')
