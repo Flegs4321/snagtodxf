@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
+import Image from 'next/image'
 import { useDropzone } from 'react-dropzone'
 
 interface ConversionSettings {
@@ -25,6 +26,7 @@ export default function UploadCard() {
   const [preview, setPreview] = useState<string | null>(null)
   const [converting, setConverting] = useState(false)
   const [result, setResult] = useState<ConversionResult | null>(null)
+  const [showSnappedNotification, setShowSnappedNotification] = useState(false)
   const [settings, setSettings] = useState<ConversionSettings>({
     threshold: 128,
     simplify: 0.1,
@@ -133,6 +135,12 @@ export default function UploadCard() {
         dxfUrl: dxfUrl || undefined
       })
 
+      // Show the snapped notification
+      setShowSnappedNotification(true)
+      setTimeout(() => {
+        setShowSnappedNotification(false)
+      }, 2800) // Hide after animation completes (2.5s animation + 0.3s buffer)
+
     } catch (error) {
       console.error('Conversion error:', error)
       setResult({
@@ -159,26 +167,114 @@ export default function UploadCard() {
 
   return (
     <div className="max-w-2xl mx-auto p-6">
+      {/* Snapped Notification */}
+      {showSnappedNotification && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none animate-fade-in">
+          <div className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 text-white px-12 py-8 rounded-2xl shadow-2xl transform animate-pop-in overflow-hidden">
+            {/* Alligator graphic */}
+            <div className="flex justify-center mb-4 animate-alligator-snap">
+              <svg width="240" height="120" viewBox="0 0 240 120" className="drop-shadow-xl">
+                <defs>
+                  <linearGradient id="gatorGreen" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style={{stopColor: '#4a7c59', stopOpacity: 1}} />
+                    <stop offset="100%" style={{stopColor: '#2d5016', stopOpacity: 1}} />
+                  </linearGradient>
+                </defs>
+                
+                {/* Upper Jaw */}
+                <g className="animate-jaw-upper">
+                  {/* Back of head - upper */}
+                  <ellipse cx="40" cy="52" rx="30" ry="24" fill="url(#gatorGreen)" stroke="#1a3010" strokeWidth="2"/>
+                  
+                  {/* Left Eye ridge bump */}
+                  <ellipse cx="48" cy="44" rx="12" ry="10" fill="#4a7c59" stroke="#1a3010" strokeWidth="1.5"/>
+                  
+                  {/* Left Eye */}
+                  <ellipse cx="48" cy="44" rx="9" ry="8" fill="#8B7355" stroke="#1a3010" strokeWidth="2"/>
+                  <ellipse cx="48" cy="44" rx="5" ry="6" fill="#2d2d2d"/>
+                  <ellipse cx="49" cy="42" rx="2" ry="3" fill="#ffeb3b"/>
+                  <circle cx="50" cy="41" r="1.5" fill="black"/>
+                  
+                  {/* Right Eye ridge bump */}
+                  <ellipse cx="68" cy="44" rx="12" ry="10" fill="#4a7c59" stroke="#1a3010" strokeWidth="1.5"/>
+                  
+                  {/* Right Eye */}
+                  <ellipse cx="68" cy="44" rx="9" ry="8" fill="#8B7355" stroke="#1a3010" strokeWidth="2"/>
+                  <ellipse cx="68" cy="44" rx="5" ry="6" fill="#2d2d2d"/>
+                  <ellipse cx="69" cy="42" rx="2" ry="3" fill="#ffeb3b"/>
+                  <circle cx="70" cy="41" r="1.5" fill="black"/>
+                  
+                  {/* Upper snout - gets narrower */}
+                  <path d="M65 50 Q95 42 130 44 Q165 45 200 42 Q215 41 225 38" 
+                        fill="none" stroke="url(#gatorGreen)" strokeWidth="28" strokeLinecap="round"/>
+                  
+                  {/* Snout top detail line */}
+                  <path d="M70 45 Q100 38 140 40 Q180 40 220 36" 
+                        fill="none" stroke="#3a5c29" strokeWidth="2" opacity="0.6"/>
+                  
+                  {/* Nostril */}
+                  <ellipse cx="222" cy="38" rx="4" ry="3" fill="#1a3010" stroke="#1a3010" strokeWidth="1"/>
+                  
+                  {/* Upper teeth */}
+                  <path d="M90 58 L91 65 L92 58 M105 59 L106 67 L107 59 M120 59 L121 68 L122 59 M135 60 L136 68 L137 60 M150 60 L151 67 L152 60 M165 59 L166 66 L167 59 M180 58 L181 64 L182 58 M195 56 L196 62 L197 56" 
+                        stroke="#f5f5f5" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+                </g>
+                
+                {/* Lower Jaw */}
+                <g className="animate-jaw-lower">
+                  {/* Back of head - lower */}
+                  <ellipse cx="40" cy="68" rx="28" ry="20" fill="url(#gatorGreen)" stroke="#1a3010" strokeWidth="2"/>
+                  
+                  {/* Lower snout */}
+                  <path d="M65 70 Q95 74 130 72 Q165 71 200 68 Q215 66 225 64" 
+                        fill="none" stroke="url(#gatorGreen)" strokeWidth="24" strokeLinecap="round"/>
+                  
+                  {/* Jaw bottom line */}
+                  <path d="M68 78 Q100 82 140 80 Q180 78 220 74" 
+                        fill="none" stroke="#2d5016" strokeWidth="2" opacity="0.8"/>
+                  
+                  {/* Lower teeth */}
+                  <path d="M90 62 L91 56 L92 62 M105 61 L106 54 L107 61 M120 61 L121 53 L122 61 M135 60 L136 53 L137 60 M150 60 L151 54 L152 60 M165 61 L166 55 L167 61 M180 62 L181 57 L182 62 M195 64 L196 59 L197 64" 
+                        stroke="#f5f5f5" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+                </g>
+                
+                {/* Texture bumps on head */}
+                <ellipse cx="32" cy="58" rx="4" ry="3" fill="#3a5c29" opacity="0.4"/>
+                <ellipse cx="25" cy="62" rx="3" ry="2.5" fill="#3a5c29" opacity="0.4"/>
+              </svg>
+            </div>
+            
+            {/* Text that snaps */}
+            <div className="relative h-16 overflow-visible">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-4xl font-black animate-text-snap-left" style={{clipPath: 'inset(0 50% 0 0)'}}>
+                  You snapped that file!
+                </div>
+                <div className="text-4xl font-black animate-text-snap-right absolute" style={{clipPath: 'inset(0 0 0 50%)'}}>
+                  You snapped that file!
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="text-center mb-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-black tracking-tight">
-            <span className="text-red-600">S</span>
-            <span className="text-black">n</span>
-            <span className="text-red-600">a</span>
-            <span className="text-black">p</span>
-            <span className="text-red-600">2</span>
-            <span className="text-black">D</span>
-            <span className="text-red-600">X</span>
-            <span className="text-black">F</span>
-          </h1>
-          <p className="text-sm font-bold text-black mt-1 underline">
-            <a href="https://cabinetexplore.com" target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition-colors">
-              From Cabinet Explore
-            </a>
-          </p>
+        <div className="flex items-center justify-center mb-2">
+          <div className="mr-1">
+            <Image 
+              src="/ChatGPT Image Oct 15, 2025, 04_13_00 PM.png?v=2" 
+              alt="Logo" 
+              width={80}
+              height={80}
+              className="w-20 h-20 object-contain"
+              priority
+            />
+          </div>
+          <h1 className="text-4xl font-black text-red-600 tracking-tight">Snap2DXF</h1>
         </div>
-        <p className="text-gray-600 mt-3">Easily Convert PNG/JPEG screenshots to DXF files</p>
+        <p className="text-gray-600">Easily Convert PNG/JPEG screenshots to DXF files</p>
       </div>
 
       {/* Upload Area */}
@@ -230,10 +326,14 @@ export default function UploadCard() {
             {/* Preview */}
             <div className="text-center relative">
               {preview && (
-                <img
+                <Image
                   src={preview}
                   alt="Preview"
-                  className="max-w-full max-h-64 mx-auto rounded-lg shadow-sm"
+                  width={512}
+                  height={512}
+                  className="max-w-full max-h-64 mx-auto rounded-lg shadow-sm object-contain"
+                  style={{ width: '100%', height: 'auto' }}
+                  unoptimized
                 />
               )}
               <button
@@ -342,7 +442,7 @@ export default function UploadCard() {
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Enter width in inches (e.g., 2.25)"
                     />
-                    <span className="text-sm text-gray-500">"</span>
+                    <span className="text-sm text-gray-500">&quot;</span>
                   </div>
                 )}
 
@@ -372,7 +472,7 @@ export default function UploadCard() {
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Enter height in inches (e.g., 0.75)"
                     />
-                    <span className="text-sm text-gray-500">"</span>
+                    <span className="text-sm text-gray-500">&quot;</span>
                   </div>
                 )}
 
@@ -382,22 +482,6 @@ export default function UploadCard() {
                     : 'Height will be set to your value, width will scale proportionally'
                   }
                 </div>
-              </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="storeInSupabase"
-                  checked={settings.storeInSupabase}
-                  onChange={(e) => setSettings(prev => ({ ...prev, storeInSupabase: e.target.checked }))}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="storeInSupabase" className="ml-2 text-sm text-gray-700">
-                  Store in cloud and get shareable link
-                  <span className="text-xs text-gray-500 block">
-                    (Requires Supabase configuration)
-                  </span>
-                </label>
               </div>
             </div>
 
