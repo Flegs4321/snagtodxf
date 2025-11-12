@@ -5,6 +5,10 @@ import { supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase'
 // Ensure this route runs in the Node.js runtime so native modules (e.g. sharp) work on Vercel
 export const runtime = 'nodejs'
 
+// This handler must always execute on demand (never statically optimized)
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // DXF conversions can take a bit of time for large images
 export const maxDuration = 60
 
