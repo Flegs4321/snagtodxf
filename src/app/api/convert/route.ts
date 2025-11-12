@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import sharp from 'sharp'
 import { supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase'
 
-// Configure API route
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-}
+// Ensure this route runs in the Node.js runtime so native modules (e.g. sharp) work on Vercel
+export const runtime = 'nodejs'
+
+// DXF conversions can take a bit of time for large images
+export const maxDuration = 60
 
 interface ConversionOptions {
   threshold?: number

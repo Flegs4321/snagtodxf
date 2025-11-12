@@ -109,8 +109,20 @@ export default function UploadCard() {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Conversion failed')
+        let message = 'Conversion failed'
+        const contentType = response.headers.get('content-type')
+        try {
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json()
+            message = errorData?.error || message
+          } else {
+            const text = await response.text()
+            message = text || message
+          }
+        } catch (parseError) {
+          console.warn('Failed to parse error response', parseError)
+        }
+        throw new Error(message)
       }
 
       // Get storage URLs from headers if available
